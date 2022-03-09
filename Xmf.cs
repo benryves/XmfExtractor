@@ -333,7 +333,7 @@ namespace XmfExtractor {
 					if (Unpackers.Length == 0 && Reference.Type == ReferenceTypeID.InLineResource) {
 						data = new BinaryReader(stream).ReadBytes(checked((int)(this.Length - ((ulong)stream.Position - this.HeaderStart))));
 					} else if (Unpackers.Length != 1) {
-						throw new InvalidDataException("This are " + Unpackers.Length + " unpackers for this file node.");
+						throw new InvalidDataException("There are " + Unpackers.Length + " unpackers for this file node.");
 					} else {
 						switch (Unpackers[0].UnpackerID.Type) {
 							case UnpackerIDType.Standard:

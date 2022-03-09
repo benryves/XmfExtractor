@@ -99,6 +99,7 @@ namespace XmfExtractor {
 			this.MainMenuStrip = this.menuStrip;
 			this.Name = "MainInterface";
 			this.Text = "XMF Extractor";
+			this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.MainInterface_FormClosed);
 			this.menuStrip.ResumeLayout(false);
 			this.menuStrip.PerformLayout();
 			this.ResumeLayout(false);

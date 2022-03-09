@@ -10,6 +10,8 @@ namespace XmfExtractor {
 			InitializeComponent();
 		}
 
+		private Stream openedXmf = null;
+
 		private void openToolStripMenuItem_Click(object sender, EventArgs e) {
 			if (this.openXmfFileDialog.ShowDialog(this) == DialogResult.OK) {
 				this.OpenFile(openXmfFileDialog.FileName);
@@ -18,12 +20,19 @@ namespace XmfExtractor {
 
 		private void OpenFile(string filename) {
 			try {
-				using (var stream = File.OpenRead(filename)) {
-					var xmf = Xmf.FromStream(stream);
-					this.listView.Items.Clear();
-					ExtractFiles(stream, xmf.RootNode);
+				if (this.openedXmf != null) {
+					this.openedXmf.Dispose();
+					this.openedXmf = null;
 				}
+				this.openedXmf = File.OpenRead(filename);
+				var xmf = Xmf.FromStream(this.openedXmf);
+				this.listView.Items.Clear();
+				ExtractFiles(this.openedXmf, xmf.RootNode);
 			} catch (Exception ex) {
+				if (this.openedXmf != null) {
+					this.openedXmf.Dispose();
+					this.openedXmf = null;
+				}
 				MessageBox.Show(this, "Error loading file: " + ex.Message, "Open", MessageBoxButtons.OK, MessageBoxIcon.Error);
 			}
 		}
@@ -45,7 +54,7 @@ namespace XmfExtractor {
 				if (!string.IsNullOrEmpty(filename)) {
 					listView.Items.Add(new ListViewItem {
 						Text = filename,
-						Tag = node.GetFileData(stream),
+						Tag = node,
 						Selected = true,
 					});
 				}
@@ -57,11 +66,19 @@ namespace XmfExtractor {
 				saveFileDialog.FileName = Path.GetFileName(lvi.Text);
 				if (saveFileDialog.ShowDialog(this) == DialogResult.OK) {
 					try {
-						File.WriteAllBytes(saveFileDialog.FileName, (byte[])lvi.Tag);
+						Node n = (Node)lvi.Tag;
+						File.WriteAllBytes(saveFileDialog.FileName, n.GetFileData(this.openedXmf));
 					} catch (Exception ex) {
 						MessageBox.Show(this, "Error saving file '" + lvi.Text + "': " + ex.Message, "Open", MessageBoxButtons.OK, MessageBoxIcon.Error);
 					}
 				}
+			}
+		}
+
+		private void MainInterface_FormClosed(object sender, FormClosedEventArgs e) {
+			if (this.openedXmf != null) {
+				this.openedXmf.Dispose();
+				this.openedXmf = null;
 			}
 		}
 	}

@@ -12,6 +12,7 @@
     <PackageProjectUrl>https://github.com/benryves/XmfExtractor</PackageProjectUrl>
     <RepositoryUrl>https://github.com/benryves/XmfExtractor</RepositoryUrl>
     <Description>Very crude tool to extract data (e.g. MIDI files as SMF) from XMF files</Description>
+    <Version>1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
