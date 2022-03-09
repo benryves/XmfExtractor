@@ -18,15 +18,40 @@ namespace XmfExtractor {
 			return result;
 		}
 
-		public static uint ReadBigEndianUInt32(this BinaryReader reader) {
+		static uint SwapEndianness(uint value) {
 			uint result = 0;
-			uint temp = reader.ReadUInt32();
 			for (int i = 0; i < 4; ++i) {
 				result <<= 8;
-				result |= (byte)temp;
-				temp >>= 8;
+				result |= (byte)value;
+				value >>= 8;
 			}
 			return result;
+		}
+
+		static ushort SwapEndianness(ushort value) {
+			ushort result = 0;
+			for (int i = 0; i < 2; ++i) {
+				result <<= 8;
+				result |= (byte)value;
+				value >>= 8;
+			}
+			return result;
+		}
+
+		public static uint ReadBigEndianUInt32(this BinaryReader reader) {
+			return SwapEndianness(reader.ReadUInt32());
+		}
+
+		public static ushort ReadBigEndianUInt16(this BinaryReader reader) {
+			return SwapEndianness(reader.ReadUInt16());
+		}
+
+		public static void WriteBigEndianValue(this BinaryWriter writer, uint value) {
+			writer.Write(SwapEndianness(value));
+		}
+
+		public static void WriteBigEndianValue(this BinaryWriter writer, ushort value) {
+			writer.Write(SwapEndianness(value));
 		}
 
 		public static string ReadXString(this BinaryReader reader) {

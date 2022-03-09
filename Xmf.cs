@@ -33,6 +33,14 @@ namespace XmfExtractor {
 		Custom = -1,
 	}
 
+	enum ResourceFormatID {
+		StandardMidiFileType0 = 0,
+		StandardMidiFileType1 = 1,
+		DownloadableSoundsLevel1 = 2,
+		DownloadableSoundsLevel2 = 3,
+		DownloadableSoundsLevel2_1 = 4,
+		MobileDownloadableSoundsInstrumentFile = 5,
+	}
 
 	struct MetaDataType {
 		public ulong MetaDataTypeID;
@@ -322,8 +330,6 @@ namespace XmfExtractor {
 
 			byte[] data = null;
 
-			var xmfReader = new BinaryReader(stream);
-
 			switch (Reference.Type) {
 				case ReferenceTypeID.InLineResource:
 				case ReferenceTypeID.InFileResource:
@@ -332,6 +338,68 @@ namespace XmfExtractor {
 
 					if (Unpackers.Length == 0 && Reference.Type == ReferenceTypeID.InLineResource) {
 						data = new BinaryReader(stream).ReadBytes(checked((int)(this.Length - ((ulong)stream.Position - this.HeaderStart))));
+					} else if (Unpackers.Length == 0 && Reference.Type == ReferenceTypeID.InFileResource) {
+
+						ResourceFormatID? resourceFormat = null;
+						try {
+							foreach (var item in this.MetaData) {
+								if (item.FieldSpecifier == FieldSpecifier.ResourceFormat) {
+									var resourceFormatReader = new BinaryReader(new MemoryStream(item.UniversalContentsData));
+									if (resourceFormatReader.ReadByte() == 0) {
+										resourceFormat = checked((ResourceFormatID)resourceFormatReader.ReadVLQ());
+									}
+								}
+							}
+						} catch {
+							throw new InvalidDataException("Could not retrieve the resource format for the node.");
+						}
+
+						if (!resourceFormat.HasValue) {
+							throw new InvalidDataException("Could not retrieve the resource format for the node.");
+						}
+
+						switch (resourceFormat.Value) {
+							case ResourceFormatID.StandardMidiFileType0:
+							case ResourceFormatID.StandardMidiFileType1:
+								using (var smfData = new MemoryStream()) {
+									
+									var smfWriter = new BinaryWriter(smfData);
+									var smfReader = new BinaryReader(stream);
+									
+									var chunkType = Encoding.ASCII.GetString(smfReader.ReadBytes(4));
+									if (chunkType != "MThd") throw new InvalidDataException("Standard MIDI file does not start with correct header chunk type ('" + chunkType + "')");
+									
+									var chunkLength = smfReader.ReadBigEndianUInt32();
+									var smfFormat = smfReader.ReadBigEndianUInt16();
+									var trackCount = smfReader.ReadBigEndianUInt16();
+									var divisions = smfReader.ReadBigEndianUInt16();
+
+									smfWriter.Write(Encoding.ASCII.GetBytes(chunkType));
+									smfWriter.WriteBigEndianValue(chunkLength);
+									smfWriter.WriteBigEndianValue(smfFormat);
+									smfWriter.WriteBigEndianValue(trackCount);
+									smfWriter.WriteBigEndianValue(divisions);
+
+									// in case there are any extra bytes...
+									smfWriter.Write(smfReader.ReadBytes(checked((int)(chunkLength - 6))));
+
+									for (int trackNumber = 0; trackNumber < trackCount; ++trackNumber) {
+										chunkType = Encoding.ASCII.GetString(smfReader.ReadBytes(4));
+										if (chunkType != "MTrk") throw new InvalidDataException("Standard MIDI file track does not start with correct track chunk type ('" + chunkType + "')");
+										chunkLength = smfReader.ReadBigEndianUInt32();
+
+										smfWriter.Write(Encoding.ASCII.GetBytes(chunkType));
+										smfWriter.WriteBigEndianValue(chunkLength);
+										
+										smfWriter.Write(smfReader.ReadBytes(checked((int)chunkLength)));
+									}
+
+									data = smfData.ToArray();
+								}
+								break;
+							default:
+								throw new InvalidDataException("Unsupported in-file resource format '" + resourceFormat.Value.ToString() + "'.");
+						}
 					} else if (Unpackers.Length != 1) {
 						throw new InvalidDataException("There are " + Unpackers.Length + " unpackers for this file node.");
 					} else {
