@@ -397,6 +397,27 @@ namespace XmfExtractor {
 									data = smfData.ToArray();
 								}
 								break;
+							case ResourceFormatID.DownloadableSoundsLevel1:
+							case ResourceFormatID.DownloadableSoundsLevel2:
+							case ResourceFormatID.DownloadableSoundsLevel2_1:
+							case ResourceFormatID.MobileDownloadableSoundsInstrumentFile:
+								using (var riffData = new MemoryStream()) {
+
+									var riffWriter = new BinaryWriter(riffData);
+									var riffReader = new BinaryReader(stream);
+
+									var riffHeader = Encoding.ASCII.GetString(riffReader.ReadBytes(4));
+									if (riffHeader != "RIFF") throw new InvalidDataException("Downloadable Sounds file does not start with correct RIFF header ('" + riffHeader + "')");
+
+									var riffLength = riffReader.ReadUInt32();
+
+									riffWriter.Write(Encoding.ASCII.GetBytes(riffHeader));
+									riffWriter.Write(riffLength);
+									riffWriter.Write(riffReader.ReadBytes((checked((int)riffLength) + 1) & ~1));
+
+									data = riffData.ToArray();
+								}
+								break;
 							default:
 								throw new InvalidDataException("Unsupported in-file resource format '" + resourceFormat.Value.ToString() + "'.");
 						}
